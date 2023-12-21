@@ -1,4 +1,4 @@
-use halo2_curves::{group::ff::PrimeField, serde::SerdeObject, CurveAffine, FieldExt};
+use halo2_curves::{group::ff::PrimeField, serde::SerdeObject, CurveAffine};
 use num_bigint::BigUint;
 
 pub fn field_repr_size<F: PrimeField>() -> usize {
@@ -15,11 +15,11 @@ pub fn ec_point_raw_size<C: CurveAffine + SerdeObject>() -> usize {
     buf.len()
 }
 
-fn modulus<F: FieldExt>() -> BigUint {
-    BigUint::from_bytes_le((-F::one()).to_repr().as_ref()) + 1u64
+fn modulus<F: PrimeField>() -> BigUint {
+    BigUint::from_bytes_le((-F::ONE).to_repr().as_ref()) + 1u64
 }
 
-fn mont_r<F: FieldExt>() -> F {
+fn mont_r<F: PrimeField>() -> F {
     let mut repr = F::Repr::default();
     let mont_r = (BigUint::from(1u64) << (8 * field_repr_size::<F>())) % modulus::<F>();
     repr.as_mut().copy_from_slice(&mont_r.to_bytes_le());

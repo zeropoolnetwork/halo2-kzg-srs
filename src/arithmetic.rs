@@ -6,10 +6,10 @@
 use halo2_curves::{
     group::{
         ff::{Field, PrimeField},
-        Curve, Group as _,
+        Curve, Group,
     },
     pairing::{MillerLoopResult, MultiMillerLoop},
-    CurveAffine, FieldExt, Group,
+    CurveAffine,
 };
 use rand_core::OsRng;
 use rayon as multicore;
@@ -191,9 +191,9 @@ pub(crate) fn best_fft<G: Group>(a: &mut [G], omega: G::Scalar, log_n: u32) {
 
     // precompute twiddle factors
     let twiddles: Vec<_> = (0..(n / 2) as usize)
-        .scan(G::Scalar::one(), |w, _| {
+        .scan(G::Scalar::ONE, |w, _| {
             let tw = *w;
-            w.group_scale(&omega);
+            *w = *w * omega;
             Some(tw)
         })
         .collect();
@@ -210,18 +210,18 @@ pub(crate) fn best_fft<G: Group>(a: &mut [G], omega: G::Scalar, log_n: u32) {
                 let (b, right) = right.split_at_mut(1);
                 let t = b[0];
                 b[0] = a[0];
-                a[0].group_add(&t);
-                b[0].group_sub(&t);
+                a[0] = a[0] + &t;
+                b[0] = b[0] - &t;
 
                 left.iter_mut()
                     .zip(right.iter_mut())
                     .enumerate()
                     .for_each(|(i, (a, b))| {
                         let mut t = *b;
-                        t.group_scale(&twiddles[(i + 1) * twiddle_chunk]);
+                        t *= &twiddles[(i + 1) * twiddle_chunk];
                         *b = *a;
-                        a.group_add(&t);
-                        b.group_sub(&t);
+                        *a += &t;
+                        *b = *b - t;
                     });
             });
             chunk *= 2;
@@ -242,8 +242,8 @@ pub(crate) fn recursive_butterfly_arithmetic<G: Group>(
     if n == 2 {
         let t = a[1];
         a[1] = a[0];
-        a[0].group_add(&t);
-        a[1].group_sub(&t);
+        a[0] += &t;
+        a[1] += &t;
     } else {
         let (left, right) = a.split_at_mut(n / 2);
         rayon::join(
@@ -256,18 +256,18 @@ pub(crate) fn recursive_butterfly_arithmetic<G: Group>(
         let (b, right) = right.split_at_mut(1);
         let t = b[0];
         b[0] = a[0];
-        a[0].group_add(&t);
-        b[0].group_sub(&t);
+        a[0] += (&t);
+        b[0] -= (&t);
 
         left.iter_mut()
             .zip(right.iter_mut())
             .enumerate()
             .for_each(|(i, (a, b))| {
                 let mut t = *b;
-                t.group_scale(&twiddles[(i + 1) * twiddle_chunk]);
+                t *= (&twiddles[(i + 1) * twiddle_chunk]);
                 *b = *a;
-                a.group_add(&t);
-                b.group_sub(&t);
+                *a += (&t);
+                *b += (&t);
             });
     }
 }
